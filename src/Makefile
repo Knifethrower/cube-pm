@@ -1,8 +1,13 @@
 CXX=g++
-CXXOPTFLAGS=-Wall -O3 -fsigned-char -fomit-frame-pointer
-CXXFLAGS=$(CXXOPTFLAGS) -I../enet/include `sdl-config --cflags`
+CC=gcc
+CXXOPTFLAGS=-Wall -O2 -fsigned-char -fomit-frame-pointer -Wno-write-strings -Wno-unused -Wno-parentheses -fpermissive
+CXXFLAGS=$(CXXOPTFLAGS) -include glibc_compat.h -I../enet/include `sdl2-config --cflags`
+CFLAGS=-O2 -I../enet/include -DHAS_SOCKLEN_T -DHAS_FCNTL -DHAS_POLL -DHAS_MSGHDR_FLAGS -DHAS_GETHOSTBYNAME_R -DHAS_GETHOSTBYADDR_R
 
-CLIENT_LIBS=-L../enet -lenet `sdl-config --libs` -lSDL_image -lSDL_mixer -lz -lGL -lGLU 
+# GLU is linked statically (no CFW ships it); GL comes from gl4es at run time.
+CLIENT_LIBS=-Wl,-Bstatic -lGLU -Wl,-Bdynamic -lGL `sdl2-config --libs` -lSDL2_mixer -lz
+ENET_OBJS=../enet/callbacks.o ../enet/host.o ../enet/list.o ../enet/memory.o ../enet/packet.o \
+	../enet/peer.o ../enet/protocol.o ../enet/unix.o
 CLIENT_OBJS= \
 	client.o \
 	clientextras.o \
@@ -29,6 +34,7 @@ CLIENT_OBJS= \
 	serverms.o \
 	serverutil.o \
 	sound.o \
+	stb_image.o \
 	tools.o \
 	weapon.o \
 	world.o \
@@ -37,30 +43,10 @@ CLIENT_OBJS= \
 	worldocull.o \
 	worldrender.o
 
-SERVER_LIBS=-L../enet -lenet
-SERVER_OBJS= \
-	standalone.o \
-	serverms.o \
-	server.o \
-	tools.o
+default: client
 
-default: all
-
-all: enet client server
-
-enet:
-	-make -C ../enet all
+client: $(CLIENT_OBJS) $(ENET_OBJS)
+	$(CXX) $(CXXFLAGS) -s -o cube_client $(CLIENT_OBJS) $(ENET_OBJS) $(CLIENT_LIBS)
 
 clean:
-	-rm -f $(SERVER_OBJS) $(CLIENT_OBJS) cube_server cube_client
-	-make -C ../enet/ clean
-
-standalone.o:
-	$(CXX) $(CXXFLAGS) -DSTANDALONE -o standalone.o -c serverutil.cpp
-
-client: $(CLIENT_OBJS)
-	$(CXX) $(CXXFLAGS) -o cube_client $(CLIENT_OBJS) $(CLIENT_LIBS)
-
-server: $(SERVER_OBJS)
-	$(CXX) $(CXXFLAGS) -o cube_server $(SERVER_OBJS) $(SERVER_LIBS)  
-	
+	-rm -f $(CLIENT_OBJS) $(ENET_OBJS) cube_client

@@ -123,8 +123,8 @@ bool menukey(int code, bool isdown)
             if(!menustack.empty()) menuset(menustack.pop());
             return true;
         }
-        else if(code==SDLK_UP || code==-4) menusel--;
-        else if(code==SDLK_DOWN || code==-5) menusel++;
+        else if(code==SDL1K_UP || code==-4) menusel--;
+        else if(code==SDL1K_DOWN || code==-5) menusel++;
         int n = menus[vmenu].items.length();
         if(menusel<0) menusel = n-1;
         else if(menusel>=n) menusel = 0;

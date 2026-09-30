@@ -44,6 +44,18 @@ void *alloc(int s)              // for some big chunks... most other allocs use 
 
 int scr_w = 640;
 int scr_h = 480;
+SDL_Window *screen = NULL;
+
+// The HUD is laid out on a 2400x1800 (4:3) virtual screen. On a wider screen it gets wider, on a
+// narrower one taller, so it fills the screen without stretching; the elements at the bottom
+// and at the right move with the edges (renderextras.cpp).
+int VIRTW = 2400, VIRTH = 1800;
+
+void setvirtual()
+{
+    if(scr_w*3 >= scr_h*4) { VIRTH = 1800; VIRTW = 1800*scr_w/scr_h; }
+    else { VIRTW = 2400; VIRTH = 2400*scr_h/scr_w; };
+};
 
 void screenshot()
 {
@@ -72,10 +84,34 @@ void screenshot()
 COMMAND(screenshot, ARG_NONE);
 COMMAND(quit, ARG_NONE);
 
+bool keyrepeating = false;               // SDL2 always repeats; repeats are dropped unless on
+
 void keyrepeat(bool on)
 {
-    SDL_EnableKeyRepeat(on ? SDL_DEFAULT_REPEAT_DELAY : 0,
-                             SDL_DEFAULT_REPEAT_INTERVAL);
+    keyrepeating = on;
+};
+
+// SDL2 key codes to the SDL 1.2 numbers keymap.cfg uses (printable keys are the same)
+int sdl1key(SDL_Keycode k)
+{
+    if(k<256) return k;
+    if(k>=SDLK_F1 && k<=SDLK_F12) return 282+(k-SDLK_F1);
+    if(k>=SDLK_KP_1 && k<=SDLK_KP_9) return 257+(k-SDLK_KP_1);
+    switch(k)
+    {
+        case SDLK_UP: return 273; case SDLK_DOWN: return 274; case SDLK_RIGHT: return 275; case SDLK_LEFT: return 276;
+        case SDLK_INSERT: return 277; case SDLK_HOME: return 278; case SDLK_END: return 279;
+        case SDLK_PAGEUP: return 280; case SDLK_PAGEDOWN: return 281;
+        case SDLK_KP_0: return 256; case SDLK_KP_PERIOD: return 266; case SDLK_KP_DIVIDE: return 267;
+        case SDLK_KP_MULTIPLY: return 268; case SDLK_KP_MINUS: return 269; case SDLK_KP_PLUS: return 270;
+        case SDLK_KP_ENTER: return 271; case SDLK_KP_EQUALS: return 272;
+        case SDLK_NUMLOCKCLEAR: return 300; case SDLK_CAPSLOCK: return 301; case SDLK_SCROLLLOCK: return 302;
+        case SDLK_RSHIFT: return 303; case SDLK_LSHIFT: return 304; case SDLK_RCTRL: return 305; case SDLK_LCTRL: return 306;
+        case SDLK_RALT: return 307; case SDLK_LALT: return 308; case SDLK_RGUI: return 309; case SDLK_LGUI: return 310;
+        case SDLK_MODE: return 313; case SDLK_HELP: return 315; case SDLK_PRINTSCREEN: return 316;
+        case SDLK_SYSREQ: return 317; case SDLK_MENU: return 319; case SDLK_PAUSE: return 19;
+    };
+    return 0;
 };
 
 VARF(gamespeed, 10, 100, 1000, if(multiplayer()) gamespeed = 100);
@@ -85,15 +121,15 @@ int islittleendian = 1;
 int framesinmap = 0;
 
 int main(int argc, char **argv)
-{    
+{
     bool dedicated = false;
-    int fs = SDL_FULLSCREEN, par = 0, uprate = 0, maxcl = 4;
+    int fs = SDL_WINDOW_FULLSCREEN_DESKTOP, par = 0, uprate = 0, maxcl = 4;
     char *sdesc = "", *ip = "", *master = NULL, *passwd = "";
     islittleendian = *((char *)&islittleendian);
 
     #define log(s) conoutf("init: %s", s)
     log("sdl");
-    
+
     for(int i = 1; i<argc; i++)
     {
         char *a = &argv[i][2];
@@ -113,7 +149,7 @@ int main(int argc, char **argv)
         }
         else conoutf("unknown commandline argument");
     };
-    
+
     #ifdef _DEBUG
     par = SDL_INIT_NOPARACHUTE;
     fs = 0;
@@ -126,7 +162,7 @@ int main(int argc, char **argv)
 
     initclient();
     initserver(dedicated, uprate, sdesc, ip, master, passwd, maxcl);  // never returns if dedicated
-      
+
     log("world");
     empty_world(7, true);
 
@@ -135,11 +171,17 @@ int main(int argc, char **argv)
 
     log("video: mode");
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    if(SDL_SetVideoMode(scr_w, scr_h, 0, SDL_OPENGL|fs)==NULL) fatal("Unable to create OpenGL screen");
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
+    SDL_DisplayMode dm;
+    if(fs && !SDL_GetDesktopDisplayMode(0, &dm)) { scr_w = dm.w; scr_h = dm.h; };
+    screen = SDL_CreateWindow("cube engine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, scr_w, scr_h, SDL_WINDOW_OPENGL|fs);
+    if(!screen || !SDL_GL_CreateContext(screen)) fatal("Unable to create OpenGL screen");
+    SDL_GL_GetDrawableSize(screen, &scr_w, &scr_h);     // fullscreen: the display's own size
+    setvirtual();
 
     log("video: misc");
-    SDL_WM_SetCaption("cube engine", NULL);
-    SDL_WM_GrabInput(SDL_GRAB_ON);
+    SDL_SetRelativeMouseMode(SDL_TRUE);
+    SDL_StopTextInput();
     keyrepeat(false);
     SDL_ShowCursor(0);
 
@@ -175,7 +217,7 @@ int main(int argc, char **argv)
     log("localconnect");
     localconnect();
     changemap("metl3");		// if this map is changed, also change depthcorrect()
-    
+
     log("mainloop");
     int ignore = 5;
     for(;;)
@@ -191,7 +233,7 @@ int main(int argc, char **argv)
         fps = (1000.0f/curtime+fps*50)/51;
         computeraytable(player1->o.x, player1->o.y);
         readdepth(scr_w, scr_h);
-        SDL_GL_SwapBuffers();
+        SDL_GL_SwapWindow(screen);
         extern void updatevol(); updatevol();
         if(framesinmap++<5)	// cheap hack to get rid of initial sparklies, even when triple buffering etc.
         {
@@ -210,9 +252,23 @@ int main(int argc, char **argv)
                     quit();
                     break;
 
-                case SDL_KEYDOWN: 
-                case SDL_KEYUP: 
-                    keypress(event.key.keysym.sym, event.key.state==SDL_PRESSED, event.key.keysym.unicode);
+                case SDL_KEYDOWN:
+                case SDL_KEYUP:
+                    if(event.key.repeat && !keyrepeating) break;
+                    keypress(sdl1key(event.key.keysym.sym), event.key.state==SDL_PRESSED, 0);
+                    break;
+
+                case SDL_TEXTINPUT:                     // typed characters for the command line
+                    for(char *c = event.text.text; *c; c++) if(*c>=32 && *c<127) keypress(0, true, *c);
+                    break;
+
+                case SDL_MOUSEWHEEL:                    // SDL 1.2 reported the wheel as buttons 4 and 5
+                    if(event.wheel.y)
+                    {
+                        int b = event.wheel.y>0 ? -4 : -5;
+                        keypress(b, true, 0);
+                        keypress(b, false, 0);
+                    };
                     break;
 
                 case SDL_MOUSEMOTION:

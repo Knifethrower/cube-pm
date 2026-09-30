@@ -76,7 +76,7 @@ void renderconsole()                                // render buffer taking into
 // keymap is defined externally in keymap.cfg
 
 struct keym { int code; char *name; char *action; } keyms[256];
-int numkm = 0;                                     
+int numkm = 0;
 
 void keymap(char *code, char *key, char *action)
 {
@@ -95,14 +95,15 @@ void bindkey(char *key, char *action)
         strcpy_s(keyms[i].action, action);
         return;
     };
-    conoutf("unknown key \"%s\"", key);   
+    conoutf("unknown key \"%s\"", key);
 };
 
 COMMANDN(bind, bindkey, ARG_2STR);
 
 void saycommand(char *init)                         // turns input to the command line on or off
 {
-    SDL_EnableUNICODE(saycommandon = (init!=NULL));
+    saycommandon = (init!=NULL);
+    if(saycommandon) SDL_StartTextInput(); else SDL_StopTextInput();
     if(!editmode) keyrepeat(saycommandon);
     if(!init) init = "";
     strcpy_s(commandbuf, init);
@@ -113,42 +114,12 @@ void mapmsg(char *s) { strn0cpy(hdr.maptitle, s, 128); };
 COMMAND(saycommand, ARG_VARI);
 COMMAND(mapmsg, ARG_1STR);
 
-#ifndef WIN32
-#include <X11/Xlib.h>
-#include <SDL_syswm.h>
-#endif
-
 void pasteconsole()
 {
-    #ifdef WIN32
-    if(!IsClipboardFormatAvailable(CF_TEXT)) return; 
-    if(!OpenClipboard(NULL)) return;
-    char *cb = (char *)GlobalLock(GetClipboardData(CF_TEXT));
-    strcat_s(commandbuf, cb);
-    GlobalUnlock(cb);
-    CloseClipboard();
-    #else
-    SDL_SysWMinfo wminfo;
-    SDL_VERSION(&wminfo.version); 
-    wminfo.subsystem = SDL_SYSWM_X11;
-    if(!SDL_GetWMInfo(&wminfo)) return;
-    int cbsize;
-    char *cb = XFetchBytes(wminfo.info.x11.display, &cbsize);
-    if(!cb || !cbsize) return;
-    int commandlen = strlen(commandbuf);
-    for(char *cbline = cb, *cbend; commandlen + 1 < _MAXDEFSTR && cbline < &cb[cbsize]; cbline = cbend + 1)
-    {
-        cbend = (char *)memchr(cbline, '\0', &cb[cbsize] - cbline);
-        if(!cbend) cbend = &cb[cbsize];
-        if(commandlen + cbend - cbline + 1 > _MAXDEFSTR) cbend = cbline + _MAXDEFSTR - commandlen - 1;
-        memcpy(&commandbuf[commandlen], cbline, cbend - cbline);
-        commandlen += cbend - cbline;
-        commandbuf[commandlen] = '\n';
-        if(commandlen + 1 < _MAXDEFSTR && cbend < &cb[cbsize]) ++commandlen;
-        commandbuf[commandlen] = '\0';
-    };
-    XFree(cb);
-    #endif
+    char *cb = SDL_GetClipboardText();
+    if(!cb) return;
+    strn0cpy(commandbuf + strlen(commandbuf), cb, _MAXDEFSTR - strlen(commandbuf));
+    SDL_free(cb);
 };
 
 cvector vhistory;
@@ -179,21 +150,21 @@ void keypress(int code, bool isdown, int cooked)
                     break;
 
                 case SDLK_BACKSPACE:
-                case SDLK_LEFT:
+                case SDL1K_LEFT:
                 {
                     for(int i = 0; commandbuf[i]; i++) if(!commandbuf[i+1]) commandbuf[i] = 0;
                     resetcomplete();
                     break;
                 };
-                    
-                case SDLK_UP:
+
+                case SDL1K_UP:
                     if(histpos) strcpy_s(commandbuf, vhistory[--histpos]);
                     break;
-                
-                case SDLK_DOWN:
+
+                case SDL1K_DOWN:
                     if(histpos<vhistory.length()) strcpy_s(commandbuf, vhistory[histpos++]);
                     break;
-                    
+
                 case SDLK_TAB:
                     complete(commandbuf);
                     break;
@@ -234,7 +205,7 @@ void keypress(int code, bool isdown, int cooked)
         {
             string temp;
             strcpy_s(temp, keyms[i].action);
-            execute(temp, isdown); 
+            execute(temp, isdown);
             return;
         };
     };
