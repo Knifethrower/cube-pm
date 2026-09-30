@@ -16,7 +16,6 @@ bool hasoverbright = false;
 
 void purgetextures();
 
-GLUquadricObj *qsphere = NULL;
 int glmaxtexsize = 256;
 
 void gl_init(int w, int h)
@@ -53,18 +52,30 @@ void gl_init(int w, int h)
 
     purgetextures();
 
-    if(!(qsphere = gluNewQuadric())) fatal("glu sphere");
-    gluQuadricDrawStyle(qsphere, GLU_FILL);
-    gluQuadricOrientation(qsphere, GLU_INSIDE);
-    gluQuadricTexture(qsphere, GL_TRUE);
-    glNewList(1, GL_COMPILE);
-    gluSphere(qsphere, 1, 12, 6);
-    glEndList();
 };
 
-void cleangl()
+void cleangl() {};
+
+// The explosion sphere: what gluSphere(q, 1, 12, 6) drew with GLU_FILL, GLU_INSIDE and texture
+// coordinates (a quad strip per stack, as Mesa's GLU), formerly compiled into display list 1.
+void drawsphere()
 {
-    if(qsphere) gluDeleteQuadric(qsphere);
+    const int slices = 12, stacks = 6;
+    loop(j, stacks)
+    {
+        float a1 = (float)(PI*j/stacks), a2 = (float)(PI*(j+1)/stacks);
+        float zlow = cosf(a1), zhigh = cosf(a2), r1 = sinf(a1), r2 = sinf(a2);
+        glBegin(GL_QUAD_STRIP);
+        for(int i = 0; i<=slices; i++)
+        {
+            float a = (float)(2*PI*(i==slices ? 0 : i)/slices), s = sinf(a), c = cosf(a);
+            glTexCoord2f(1-(float)i/slices, 1-(float)j/stacks);
+            glVertex3f(r1*s, r1*c, zlow);
+            glTexCoord2f(1-(float)i/slices, 1-(float)(j+1)/stacks);
+            glVertex3f(r2*s, r2*c, zhigh);
+        };
+        glEnd();
+    };
 };
 
 bool installtex(int tnum, char *texname, int &xs, int &ys, bool clamp)
@@ -209,8 +220,13 @@ void renderstripssky()
     loopv(strips) if(strips[i].tex==skyoglid) glDrawArrays(GL_TRIANGLE_STRIP, strips[i].start, strips[i].num);
 };
 
+// Sorted by texture, so that each texture is one batch (the world is opaque and depth tested:
+// the order of its strips does not change the picture).
+static int stripcmp(const strip *a, const strip *b) { return a->tex!=b->tex ? a->tex-b->tex : a->start-b->start; };
+
 void renderstrips()
 {
+    strips.sort((void *)stripcmp);
     int lasttex = -1;
     loopv(strips) if(strips[i].tex!=skyoglid)
     {

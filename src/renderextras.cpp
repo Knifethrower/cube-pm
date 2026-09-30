@@ -115,9 +115,9 @@ void renderspheres(int time)
         glTranslatef(p->o.x, p->o.z, p->o.y);
         glRotatef(lastmillis/5.0f, 1, 1, 1);
         glScalef(p->size, p->size, p->size);
-        glCallList(1);
+        drawsphere();
         glScalef(0.8f, 0.8f, 0.8f);
-        glCallList(1);
+        drawsphere();
         glPopMatrix();
         xtraverts += 12*6*2;
 
@@ -212,7 +212,7 @@ float depthcorrect(float d)
 
 void readdepth(int w, int h)
 {
-    glReadPixels(w/2, h/2, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &cursordepth);
+    cursordepth = gl1_readdepth(w/2, h/2);
     double worldx = 0, worldy = 0, worldz = 0;
     gluUnProject(w/2, h/2, depthcorrect(cursordepth), mm, pm, viewport, &worldx, &worldz, &worldy);
     worldpos.x = (float)worldx;

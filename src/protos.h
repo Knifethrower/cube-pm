@@ -38,6 +38,7 @@ extern void writeservercfg();
 // rendergl
 extern void gl_init(int w, int h);
 extern void cleangl();
+extern void drawsphere();
 extern void gl_drawframe(int w, int h, float curfps);
 extern bool installtex(int tnum, char *texname, int &xs, int &ys, bool clamp = false);
 extern void mipstats(int a, int b, int c);

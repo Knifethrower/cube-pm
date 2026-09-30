@@ -170,6 +170,9 @@ int main(int argc, char **argv)
     if(SDL_InitSubSystem(SDL_INIT_VIDEO)<0) fatal("Unable to initialize SDL Video");
 
     log("video: mode");
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
     SDL_DisplayMode dm;
@@ -186,6 +189,7 @@ int main(int argc, char **argv)
     SDL_ShowCursor(0);
 
     log("gl");
+    gl1_init();
     gl_init(scr_w, scr_h);
 
     log("basetex");

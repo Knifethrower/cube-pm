@@ -270,9 +270,7 @@ enum    // function signatures for script functions, see command.cpp
 
 #include <time.h>
 
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <GL/glext.h>
+#include "gl1es.h"                     // the GL 1.x calls below, on OpenGL ES 2.0
 
 #include <SDL.h>
 

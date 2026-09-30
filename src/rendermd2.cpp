@@ -134,20 +134,8 @@ void md2::render(vec &light, int frame, int range, float x, float y, float z, fl
 
 	glColor3fv((float *)&light);
 
-    if(displaylist && frame==0 && range==1)
+    // (static models were display lists; gl1es batches their strips like the animated ones)
     {
-		glCallList(displaylist);
-		xtraverts += displaylistverts;
-    }
-    else
-    {
-		if(frame==0 && range==1)
-		{
-			static int displaylistn = 10;
-			glNewList(displaylist = displaylistn++, GL_COMPILE);
-			displaylistverts = xtraverts;
-		};
-
 		int time = lastmillis-basetime;
 		int fr1 = (int)(time/speed);
 		float frac1 = (time-fr1*speed)/speed;
@@ -179,12 +167,6 @@ void md2::render(vec &light, int frame, int range, float x, float y, float z, fl
 			xtraverts += numVertex;
 
 			glEnd();
-		};
-
-		if(displaylist)
-		{
-			glEndList();
-			displaylistverts = xtraverts-displaylistverts;
 		};
 	};
 

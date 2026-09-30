@@ -4,8 +4,8 @@ CXXOPTFLAGS=-Wall -O2 -fsigned-char -fomit-frame-pointer -Wno-write-strings -Wno
 CXXFLAGS=$(CXXOPTFLAGS) -include glibc_compat.h -I../enet/include `sdl2-config --cflags`
 CFLAGS=-O2 -I../enet/include -DHAS_SOCKLEN_T -DHAS_FCNTL -DHAS_POLL -DHAS_MSGHDR_FLAGS -DHAS_GETHOSTBYNAME_R -DHAS_GETHOSTBYADDR_R
 
-# GLU is linked statically (no CFW ships it); GL comes from gl4es at run time.
-CLIENT_LIBS=-Wl,-Bstatic -lGLU -Wl,-Bdynamic -lGL `sdl2-config --libs` -lSDL2_mixer -lz
+# No GL library is linked: gl1es.cpp gets the OpenGL ES 2.0 functions from SDL.
+CLIENT_LIBS=`sdl2-config --libs` -lSDL2_mixer -lz
 ENET_OBJS=../enet/callbacks.o ../enet/host.o ../enet/list.o ../enet/memory.o ../enet/packet.o \
 	../enet/peer.o ../enet/protocol.o ../enet/unix.o
 CLIENT_OBJS= \
@@ -17,6 +17,7 @@ CLIENT_OBJS= \
 	console.o \
 	editing.o \
 	entities.o \
+	gl1es.o \
 	main.o \
 	menus.o \
 	monster.o \
