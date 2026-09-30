@@ -15,4 +15,12 @@ Changes for the PortMaster port (aarch64 Linux handhelds):
   screens and the 4:3 horizontal view on narrower ones (`hfov()`), the culling uses the angle
   actually shown, and the HUD's virtual screen follows the screen's shape with its bottom and
   right elements anchored to the edges.
-- `src/Makefile`: client only, ENet built in, GLU linked statically.
+- Draws with OpenGL ES 2.0 instead of OpenGL 1.x (`src/gl1es.cpp`, `src/gl1es.h`): the game's GL
+  1.x calls are kept and implemented on ES 2.0 with the vertices transformed on the CPU and drawn
+  in batches (one per texture and GPU state instead of one per strip, particle or glyph). World
+  strips are sorted by texture, the explosion sphere and the models are drawn without display
+  lists, mipmaps come from `glGenerateMipmap`. The depth under the crosshair (the aim point) is
+  read through a 1x1 framebuffer, since ES cannot read the depth buffer.
+- `src/Makefile`: client only, ENet built in, no GL library linked (the ES functions come from SDL).
+
+The network code is unchanged: the client plays with the original 2005 clients and servers.
